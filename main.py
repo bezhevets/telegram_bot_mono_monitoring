@@ -101,14 +101,20 @@ def get_statement(statement: list):
         print(f"Error in get_statement: {e}")
 
 
-statement = []
-
-
-def get_statement_mono() -> dict:
+def get_statement_mono() -> list:
     monobank_statements = f"https://api.monobank.ua/personal/statement/{os.environ['FOP_ACC']}/{get_unix_time()}/"
     response = requests.get(monobank_statements, headers=headers)
     result = response.json()
     return result
+
+
+def comparison_statements(statement_old) -> list | None:
+    new_statement = get_statement_mono()
+    if new_statement != statement_old:
+        return new_statement
+
+
+statement = get_statement_mono()
 
 
 @log_file
