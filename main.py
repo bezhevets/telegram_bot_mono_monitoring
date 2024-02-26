@@ -68,6 +68,16 @@ def formatted_time(unix_time) -> str:
     return kiev_time.strftime("%H:%M:%S")
 
 
+def get_statement_mono() -> list:
+    monobank_statements = f"https://api.monobank.ua/personal/statement/{os.environ['FOP_ACC']}/{get_unix_time()}/"
+    response = requests.get(monobank_statements, headers=headers)
+    result = response.json()
+    return result
+
+
+statement = []
+
+
 @log_file
 def get_balance_fop() -> str:
     """Баланс ФОП рахунку"""
@@ -81,70 +91,54 @@ def get_balance_fop() -> str:
         print(f"Error get_balance_fop: {e}")
 
 
+def get_message_text(statement_detail: dict) -> str:
+    text = (
+        f"\n\n{formatted_time(datetime.datetime.fromtimestamp(statement_detail.get('time'), datetime.timezone.utc))}"
+        f"\n*Сума*: {round(statement_detail.get('amount') / 100, 2)}"
+        f"\n*Баланс*: {round(statement_detail.get('balance') / 100, 2)}"
+        f"\n*Коментар*: {escape_markdown(statement_detail.get('comment') or statement_detail.get('description') or '-//-')}"
+    )
+    return text
+
+
 @log_file
-def get_statement(statement: list):
+def get_statement(statements: list):
     """Виписка за сьогодні"""
-    try:
-        if not statement:
-            return f"Сьогодні оплат ще не було 😕"
-        else:
-            message = "Виписка:"
-            for i in range(len(statement)):
-                message += (
-                    f"\n\n{formatted_time(datetime.datetime.fromtimestamp(statement[i]['time'], datetime.timezone.utc))}"
-                    f"\n*Сума*: {round(statement[i]['amount'] / 100, 2)}"
-                    f"\n*Баланс*: {round(statement[i]['balance'] / 100, 2)}"
-                    f"\n*Коментар*: {escape_markdown(statement[i].get('comment') or statement[i].get('description') or '-//-')}"
-                )
-            return message
-    except Exception as e:
-        print(f"Error in get_statement: {e}")
-
-
-def get_statement_mono() -> list:
-    monobank_statements = f"https://api.monobank.ua/personal/statement/{os.environ['FOP_ACC']}/{get_unix_time()}/"
-    response = requests.get(monobank_statements, headers=headers)
-    result = response.json()
-    return result
-
-
-def comparison_statements(statement_old) -> list | None:
-    new_statement = get_statement_mono()
-    if new_statement != statement_old:
-        return new_statement
-
-
-statement = get_statement_mono()
+    if not statements:
+        return f"Сьогодні оплат ще не було 😕"
+    else:
+        message = "Виписка:"
+        for stat in statements:
+            message += get_message_text(stat)
+        return message
 
 
 @log_file
 def send_message() -> str | None:
     """Відправка сповіщення"""
     global statement
-
+    message = None
     result = get_statement_mono()
 
-    if not result:
-        statement = []
+    if result:
+        if result != statement:
+            for detail in result:
+                if detail not in statement:
+                    if message:
+                        message += get_message_text(detail)
+                    else:
+                        message = get_message_text(detail)
+            statement = result.copy()
+            return message
         return None
-    elif result != statement:
-        statement = result.copy()
-
-        message = (
-            f"{formatted_time(datetime.datetime.fromtimestamp(statement[0]['time'], datetime.timezone.utc))}"
-            f"\n*Сума*: {round(statement[0]['amount'] / 100, 2)}"
-            f"\n*Баланс*: {round(statement[0]['balance'] / 100, 2)}"
-            f"\n*Коментар*: {escape_markdown(statement[0].get('comment') or statement[0].get('description') or '-//-')}"
-        )
-        return message
     else:
+        statement = []
         return None
 
 
 @bot.message_handler(commands=["start"])
 def send_welcome(message) -> None:
     print(f"Start in time: {datetime.datetime.now()}")
-    print(ID_MAIN_PERSON)
     if message.from_user.id not in list(ID_MAIN_PERSON):
         bot.send_message(
             message.chat.id,
@@ -163,27 +157,23 @@ def send_welcome(message) -> None:
             reply_markup=markup,
         )
         while True:
-            try:
-                message_to_send = send_message()
-                if message_to_send is not None:
-                    try:
-                        bot.send_message(
-                            message.chat.id,
-                            message_to_send,
-                            parse_mode="Markdown",
-                        )
-                    except Exception as e:
-                        print(f"Error bot.send_message: {e}")
-                    time.sleep(300)
-                else:
-                    time.sleep(300)
-            except Exception as e:
-                print(f"Error in while loop: {e}")
+            message_to_send = send_message()
+            if message_to_send is not None:
+                try:
+                    bot.send_message(
+                        message.chat.id,
+                        message_to_send,
+                        parse_mode="Markdown",
+                    )
+                except Exception as e:
+                    print(f"Error bot.send_message: {e}")
+                time.sleep(300)
+            else:
                 time.sleep(300)
 
 
 @bot.message_handler(content_types=["text"])
-def func(message) -> None:
+def function_btn(message) -> None:
     if message.text == "❓ Курс Валют":
         bot.send_message(
             message.chat.id, info_currency(), parse_mode="Markdown"
