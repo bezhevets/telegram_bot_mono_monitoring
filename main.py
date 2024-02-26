@@ -75,9 +75,6 @@ def get_statement_mono() -> list:
     return result
 
 
-statement = []
-
-
 @log_file
 def get_balance_fop() -> str:
     """Баланс ФОП рахунку"""
@@ -114,9 +111,8 @@ def get_statement(statements: list):
 
 
 @log_file
-def send_message() -> str | None:
+def send_message(statement) -> tuple:
     """Відправка сповіщення"""
-    global statement
     message = None
     result = get_statement_mono()
 
@@ -129,11 +125,8 @@ def send_message() -> str | None:
                     else:
                         message = get_message_text(detail)
             statement = result.copy()
-            return message
-        return None
-    else:
-        statement = []
-        return None
+            return message, statement
+    return message, statement
 
 
 @bot.message_handler(commands=["start"])
@@ -157,7 +150,8 @@ def send_welcome(message) -> None:
             reply_markup=markup,
         )
         while True:
-            message_to_send = send_message()
+            statement = []
+            message_to_send, statement = send_message(statement)
             if message_to_send is not None:
                 try:
                     bot.send_message(
@@ -185,7 +179,7 @@ def function_btn(message) -> None:
     elif message.text == "🧾Виписка за сьогодні 💰":
         bot.send_message(
             message.chat.id,
-            get_statement(statement),
+            get_statement(get_statement_mono()),
             parse_mode="Markdown",
         )
 
