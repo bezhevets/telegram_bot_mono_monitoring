@@ -8,3 +8,4 @@ venv/
 **__pycache__/
 pyproject.toml
 .flake8
+log.txt
