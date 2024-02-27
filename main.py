@@ -102,7 +102,7 @@ def get_message_text(statement_detail: dict) -> str:
 def get_statement(statements: list) -> str:
     """message Statement of today"""
     if not statements:
-        return f"Сьогодні оплат ще не було 😕"
+        return "Сьогодні оплат ще не було 😕"
     else:
         message = "Виписка:"
         for stat in statements:
