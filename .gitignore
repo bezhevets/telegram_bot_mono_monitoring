@@ -9,3 +9,4 @@ venv/
 pyproject.toml
 .flake8
 log.txt
+log.log
