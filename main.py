@@ -18,6 +18,7 @@ load_dotenv()
 bot = telebot.TeleBot(os.environ["TG_TOKEN"])
 monobank_api_currency = "https://api.monobank.ua/bank/currency"
 headers = {"X-Token": os.environ["MONO_TOKEN"]}
+CHAT_ID = os.environ["CHAT_ID"]
 
 
 def get_list_id_users() -> list[int]:
@@ -132,12 +133,32 @@ def send_message(statement) -> tuple:
 @bot.message_handler(commands=["start"])
 def send_welcome(message) -> None:
     print(f"Start in time: {datetime.datetime.now()}")
-    if message.from_user.id not in list(ID_MAIN_PERSON):
-        bot.send_message(
-            message.chat.id,
-            text="Доступ закритий. Ваш ID не в списку довірених",
-        )
-    else:
+    bot.send_message(
+        CHAT_ID,
+        text="Привіт, {0.first_name}! Моніторинг розпочав роботу.".format(
+            message.from_user
+        ),
+    )
+    statement = []
+    while True:
+        message_to_send, statement = send_message(statement)
+        if message_to_send is not None:
+            try:
+                bot.send_message(
+                    CHAT_ID,
+                    message_to_send,
+                    parse_mode="Markdown",
+                )
+            except Exception as e:
+                print(f"Error bot.send_message: {e}")
+            time.sleep(300)
+        else:
+            time.sleep(300)
+
+
+@bot.message_handler(commands=["menu"])
+def buttons(message) -> None:
+    if message.from_user.id in ID_MAIN_PERSON:
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         btn1 = types.KeyboardButton("💵 Баланс")
         btn2 = types.KeyboardButton("🧾Виписка за сьогодні 💰")
@@ -145,43 +166,29 @@ def send_welcome(message) -> None:
         markup.add(btn1, btn3)
         markup.add(btn2)
         bot.send_message(
-            message.chat.id,
+            CHAT_ID,
             text="Привіт, {0.first_name}!".format(message.from_user),
             reply_markup=markup,
         )
-        while True:
-            statement = []
-            message_to_send, statement = send_message(statement)
-            if message_to_send is not None:
-                try:
-                    bot.send_message(
-                        message.chat.id,
-                        message_to_send,
-                        parse_mode="Markdown",
-                    )
-                except Exception as e:
-                    print(f"Error bot.send_message: {e}")
-                time.sleep(300)
-            else:
-                time.sleep(300)
+    else:
+        bot.send_message(CHAT_ID, "You don't have permission to use commands.")
 
 
 @bot.message_handler(content_types=["text"])
 def function_btn(message) -> None:
-    if message.text == "❓ Курс Валют":
-        bot.send_message(
-            message.chat.id, info_currency(), parse_mode="Markdown"
-        )
-    elif message.text == "💵 Баланс":
-        bot.send_message(
-            message.chat.id, get_balance_fop(), parse_mode="Markdown"
-        )
-    elif message.text == "🧾Виписка за сьогодні 💰":
-        bot.send_message(
-            message.chat.id,
-            get_statement(get_statement_mono()),
-            parse_mode="Markdown",
-        )
+    if message.from_user.id in ID_MAIN_PERSON:
+        if message.text == "❓ Курс Валют":
+            bot.send_message(CHAT_ID, info_currency(), parse_mode="Markdown")
+        elif message.text == "💵 Баланс":
+            bot.send_message(CHAT_ID, get_balance_fop(), parse_mode="Markdown")
+        elif message.text == "🧾Виписка за сьогодні 💰":
+            bot.send_message(
+                CHAT_ID,
+                get_statement(get_statement_mono()),
+                parse_mode="Markdown",
+            )
+    else:
+        bot.send_message(CHAT_ID, "You don't have permission to use commands.")
 
 
 if __name__ == "__main__":
