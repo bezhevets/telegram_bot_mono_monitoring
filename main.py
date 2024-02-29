@@ -90,13 +90,20 @@ def get_balance_fop() -> str:
 
 
 def get_message_text(statement_detail: dict) -> str:
-    text = (
-        f"\n\n{formatted_time(datetime.datetime.fromtimestamp(statement_detail.get('time'), datetime.timezone.utc))}"
-        f"\n*Сума*: {round(statement_detail.get('amount') / 100, 2)}"
-        f"\n*Баланс*: {round(statement_detail.get('balance') / 100, 2)}"
-        f"\n*Коментар*: {escape_markdown(statement_detail.get('comment') or statement_detail.get('description') or '-//-')}"
-    )
-    return text
+    try:
+        text = (
+            f"\n\n{formatted_time(datetime.datetime.fromtimestamp(statement_detail.get('time'), datetime.timezone.utc))}"
+            f"\n*Сума*: {round(statement_detail.get('amount') / 100, 2)}"
+            f"\n*Баланс*: {round(statement_detail.get('balance') / 100, 2)}"
+            f"\n*Коментар*: {escape_markdown(statement_detail.get('comment') or statement_detail.get('description') or '-//-')}"
+        )
+        return text
+    except AttributeError as error:
+        logging.error(f"{error}", exc_info=True)
+        logging.info(
+            f"Incorrect data (The value of the argument: {statement_detail})"
+        )
+        return "Помилка при формуванні повідомлення."
 
 
 def get_statement(statements: list) -> str:
