@@ -146,19 +146,22 @@ def send_welcome(message) -> None:
     )
     statement = []
     while True:
-        message_to_send, statement = send_message(statement)
-        if message_to_send is not None:
-            try:
-                bot.send_message(
-                    CHAT_ID,
-                    message_to_send,
-                    parse_mode="Markdown",
-                )
-            except Exception as error:
-                logging.error(f"{error}", exc_info=True)
-            time.sleep(300)
-        else:
-            time.sleep(300)
+        try:
+            message_to_send, statement = send_message(statement)
+            if message_to_send is not None:
+                try:
+                    bot.send_message(
+                        CHAT_ID,
+                        message_to_send,
+                        parse_mode="Markdown",
+                    )
+                except Exception as error:
+                    logging.error(f"{error}", exc_info=True)
+                time.sleep(300)
+            else:
+                time.sleep(300)
+        except Exception as error:
+            logging.error(f"{error}", exc_info=True)
 
 
 @bot.message_handler(commands=["menu"])
